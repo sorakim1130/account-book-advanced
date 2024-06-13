@@ -2,6 +2,9 @@ import { Section } from "../pages/Home";
 import styled from "styled-components";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import {QueryClient, useMutation} from "@tanstack/react-query";
+import {postExpense} from "../lib/api/expense.js";
+import {useNavigate} from "react-router-dom";
 
 const InputRow = styled.div`
   display: flex;
@@ -45,13 +48,23 @@ const AddButton = styled.button`
   }
 `;
 
-export default function CreateExpense({ month, expenses, setExpenses }) {
+export default function CreateExpense({ user, month }) {
   const [newDate, setNewDate] = useState(
     `2024-${String(month).padStart(2, "0")}-01`
   );
   const [newItem, setNewItem] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const queryClient = new QueryClient();
+  const navigate = useNavigate()
+
+  const mutation = useMutation({
+    mutationFn: postExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["expenses"]);
+      navigate(0);
+    },
+  });
 
   const handleAddExpense = () => {
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,7 +72,6 @@ export default function CreateExpense({ month, expenses, setExpenses }) {
       alert("날짜를 YYYY-MM-DD 형식으로 입력해주세요.");
       return;
     }
-
     const parsedAmount = parseInt(newAmount, 10);
     if (!newItem || parsedAmount <= 0) {
       alert("유효한 항목과 금액을 입력해주세요.");
@@ -73,9 +85,11 @@ export default function CreateExpense({ month, expenses, setExpenses }) {
       item: newItem,
       amount: parsedAmount,
       description: newDescription,
+      createdBy: user.userId,
     };
 
-    setExpenses([...expenses, newExpense]);
+    mutation.mutate(newExpense);
+
     setNewDate(`2024-${String(month).padStart(2, "0")}-01`);
     setNewItem("");
     setNewAmount("");
